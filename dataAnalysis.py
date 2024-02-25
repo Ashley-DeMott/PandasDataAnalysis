@@ -1,14 +1,14 @@
 # Author: Ashley DeMott
 # Project: Data Analysis using Pandas and MatPlotLib 
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+# The file where the data is read from
 FILENAME = "vgsales.csv"
 
 def get_data_set():
-    """ Returns a Pandas DataFrame from a file"""
+    """Returns a Pandas DataFrame from a file"""
     # FUTURE TODO:
     # Can prompt data set from user
     # Determine pandas function based on filetype
@@ -17,8 +17,7 @@ def get_data_set():
     return data
 
 def get_platform_best_sellers(vg_sales):
-    """ Given the sales data for video games, returns a DataFrame with the best selling games per platform"""
-    
+    """Given the sales data for video games, returns a DataFrame with the best selling games per platform"""
     # Get the highest global sales, grouped by platform
     platform_best = vg_sales.groupby("Platform")["Global_Sales"].idxmax()
 
@@ -28,15 +27,14 @@ def get_platform_best_sellers(vg_sales):
     # Sort the values by global sales, most to least
     platform_best = platform_best[["Platform", "Name", "Global_Sales"]].sort_values("Global_Sales", ascending=False)
     
-    # TODO: Doesn't rename column?
-    #platform_best.rename(columns={"Global_Sales": "Global Sales (millions)"})
+    # Rename column to clarify data
+    platform_best = platform_best.rename(columns={"Global_Sales": "Global Sales (in millions)"})
 
     return platform_best
 
 def get_year_global_sales(vg_sales):
     """ Given the sales data for video games, returns a DataFrame with total sales per year"""
-        
-    # Drops rows with a N/A in them (N/A for year, global sales)
+    # Drops rows with a N/A in them
     year_best = vg_sales[["Year", "Global_Sales"]].dropna()
 
     # Explicitly cast each column to a specific data type (Year defaults to float)
@@ -44,50 +42,50 @@ def get_year_global_sales(vg_sales):
 
     # Group games sold in the same year together
     year_best = year_best.groupby("Year")["Global_Sales"].sum()
-    
-    #year_best = year_best.sort_values(ascending=False)
 
-    #vg_sales.groupby("Year")["Global_Sales"].agg('sum')
-    year_best = pd.DataFrame({"Year": year_best.index, "Global Sales": year_best})
+    # Create a new DataFrame with Year and Global Sales as separate named columns
+    year_best = pd.DataFrame({"Year": year_best.index, "Global Sales (in millions)": year_best})
+    year_best.sort_values("Global Sales (in millions)", ascending=False)
 
     return year_best
 
 def get_year_num_games(vg_sales):
     """ Gets the number of games (that sold 100k+ copies) that were released each year"""
-    #year_games = vg_sales[["Year", "Name"]]
+    # Using only the Year and Genre columns, drop rows with N/A
+    #  and make sure Year column is integers and not float
     year_games = vg_sales[["Year", "Name"]].dropna().astype({"Year": int})
+
+    # Grouping by Year, count the number of games per Year
     year_games = year_games.groupby("Year").count()
+
+    # Rename and sort the values by global sales (rename to clarify database's lower limit)
     year_games = year_games.rename(columns={"Year": "Year", "Name": "Games with 100k sales"})
     year_games = year_games.sort_values("Games with 100k sales", ascending=False)
-    #year_games = vg_sales[["Year", "Name"]].dropna()
-    #year_games = year_games.astype({"Year": int, "Name": str})
-    
-    #year_games = year_games.groupby("Year").sum()
-    #year_games["Count"] = year_games.groupby("Year").sum()
-
-    #year_games = year_games.sort_values("Count", ascending=False)
 
     return year_games
 
-def get_genre_by_year(vg_sales):
-    """ Get the most common genre sold each year"""
+def get_genre_year(vg_sales):
+    """ Get the most popular genre per year with how many games sold 100k+"""
+    # Using only the Year and Genre columns, drop rows with N/A
+    #  and make sure Year column is integers and not float
     year_genre = vg_sales[["Year", "Genre"]].dropna().astype({"Year": int})
-    
-    year_genre = year_genre.groupby("Year")["Genre"].agg(pd.Series.mode)
 
-    #year_genre.rename("Most popular genre by year")
+    # Grouping by Year, get the counts for each Genre
+    year_genre = year_genre.groupby("Year")["Genre"].value_counts()
 
-    # Series do not have columns?
-    #year_genre.rename(columns= {year_genre.columns[1]: "Most popular genre"})
+    # Get the maximum count for year/genre Series, unzip the tuple into year and genre
+    year, genre = zip(*year_genre.groupby("Year").idxmax().values)
 
-    return year_genre
+    # Create a new DataFrame with the Year, Genre, and the max counts per Year
+    best_year_genre = pd.DataFrame({"Year": year, "Genre": genre, "Count": year_genre.groupby("Year").max()})
+
+    return best_year_genre
 
 def graph_global_sales(year_global_sales):
-    """ Graphs the global sales by year"""
-        
+    """ Graphs the global sales by year"""        
     # Data to be graphed
     x = year_global_sales["Year"]
-    y = year_global_sales["Global Sales"]
+    y = year_global_sales["Global Sales (in millions)"]
 
     fig, ax = plt.subplots()
     ax.plot(x, y)
@@ -97,57 +95,42 @@ def graph_global_sales(year_global_sales):
     ax.set_title("*Only includes games that sold over 100,000 units", fontsize=10)
 
     plt.xlabel("Year")
-    plt.ylabel("Global Sales in millions")
+    plt.ylabel("Global Sales (in millions)")
 
     # Show the plot
     plt.show()
 
-vg_sales = get_data_set()
+def main():
+    vg_sales = get_data_set()
 
-# Question 1: What are the best selling games per platform?
-# Displays DataFrame to console, removes index column
-print("Best selling games per platform:")
-platform_best_sellers = get_platform_best_sellers(vg_sales)
-print(platform_best_sellers.to_string(index=False))
+    # Question 1: What are the best selling games per platform?
+    # Displays DataFrame to console, removes index column
+    print("Best selling games per platform:")
+    platform_best_sellers = get_platform_best_sellers(vg_sales)
+    print(platform_best_sellers.to_string(index=False))
 
-# Question 2: What year sold the most games?
-#print(get_year_num_games(vg_sales).to_string())
-print("Global sales (in millions) per year (of games with 100k sales):")
-year_global_sales = get_year_global_sales(vg_sales)
-print(year_global_sales.sort_values("Global Sales", ascending=False).to_string(index=False))
-graph_global_sales(year_global_sales)
+    # Question 2: What year sold the most games?
+    #print(get_year_num_games(vg_sales).to_string())
+    print("\nGlobal sales per year (of games with 100k sales):")
+    year_global_sales = get_year_global_sales(vg_sales)
+    print(year_global_sales.to_string(index=False))
 
-# Additional questions
-# Most popular genre for each year
-#print(get_genre_by_year(vg_sales).to_string())
+    # Additional Questions
 
-#print(vg_sales.head())
-#print(vg_sales.dtypes)
+    # Games that sold 100k+ per year
+    print("\nNumber of games selling 100k units per year:")
+    year_games = get_year_num_games(vg_sales)
+    print(year_games.to_string()) # Series, show index (Year)
 
-# Game that sold best for each platform
-#platform = vg_sales[["Platform", "Name", "Global_Sales"]].copy()
+    # Most popular genre for each year
+    print("\nMost popular genre per year:")
+    year_genre = get_genre_year(vg_sales)
+    print(year_genre.to_string(index=False))
 
-#platform = vg_sales.groupby("Platform")["Global_Sales"].first()
-#platform["Name"] = vg_sales["Name"].transform()
+    # Graphing (pauses terminal)
 
-#platform.insert(1, "Rank", platform.sort_values("Global_Sales", ascending=False).index, True)
+    # Display a graph for global sales by year
+    graph_global_sales(year_global_sales)
 
-#print(platform.groupby("Platform")["Global_Sales"].max().reset_index())
-
-#print(platform.sort_values("Global_Sales", ascending=False))
-
-#print(platform["Platform"].value_counts())
-
-#platform = vg_sales.groupby(["Platform", "Name"])["Global_Sales"].transform("max") == vg_sales["Global_Sales"]
-#print(vg_sales[platform])
-
-#print(vg_sales.groupby(["Platform"])["Global_Sales"].agg("max"))
-#print(vg_sales.groupby(["Platform"])["Global_Sales"].max().reset_index().sort_values(["Global_Sales"], ascending=False))
-
-#print(vg_sales[["Platform", "Name", "Global_Sales"]].groupby("Platform").max())
-
-# Year with most global sales
-#print(vg_sales[["Year", "Global_Sales"]].groupby("Year").sum().sort_values("Global_Sales", ascending=False))
-
-#year_best = vg_sales.loc[vg_sales.groupby("Year")["Global_Sales"].agg()]
-#year_best = year_best[["Year", "Global_Sales"].sort_values("Year")]
+if __name__ == "__main__":
+    main()
